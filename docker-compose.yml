@@ -1,0 +1,24 @@
+name: P7
+
+services:
+  P7-server:
+    build:
+      context: ./server
+    environment:
+      DATABASE_URL: file:/app/prisma/dev.db
+      PORT: 8080
+    volumes:
+      - db_data:/app/prisma
+    ports:
+      - "8080:8080"
+
+  P7-client:
+    build:
+      context: ./client
+    ports:
+      - "80:80"
+    depends_on:
+      - P7-server
+
+volumes:
+  db_data:
