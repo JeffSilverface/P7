@@ -26,22 +26,12 @@ jobs:
         run: npm install --ignore-scripts
 
       - name: Audit client prod deps (bloquant)
-        uses: oke-py/npm-audit-action@v2
-        with:
-          audit_level: high
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          create_issues: false
-          working_directory: client
-          production_flag: true
+        working-directory: client
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Audit server prod deps (bloquant)
-        uses: oke-py/npm-audit-action@v2
-        with:
-          audit_level: high
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          create_issues: false
-          working_directory: server
-          production_flag: true
+        working-directory: server
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Audit client dev deps (informatif)
         working-directory: client
