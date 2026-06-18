@@ -17,22 +17,44 @@ jobs:
         with:
           node-version: 22
 
-      - name: Audit client
+      - name: Install client deps
         working-directory: client
-        run: |
-          npm install --ignore-scripts
-          npm audit --audit-level=high
+        run: npm install --ignore-scripts
 
-      - name: Audit server
+      - name: Install server deps
         working-directory: server
-        run: |
-          npm install --ignore-scripts
-          npm audit --audit-level=high
+        run: npm install --ignore-scripts
 
-      - name: Outdated client (informative)
+      - name: Audit client prod deps (bloquant)
+        uses: oke-py/npm-audit-action@v2
+        with:
+          audit_level: high
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          create_issues: false
+          working_directory: client
+          extra_options: --omit=dev
+
+      - name: Audit server prod deps (bloquant)
+        uses: oke-py/npm-audit-action@v2
+        with:
+          audit_level: high
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          create_issues: false
+          working_directory: server
+          extra_options: --omit=dev
+
+      - name: Audit client dev deps (informatif)
+        working-directory: client
+        run: npm audit --audit-level=high || true
+
+      - name: Audit server dev deps (informatif)
+        working-directory: server
+        run: npm audit --audit-level=high || true
+
+      - name: Outdated client (informatif)
         working-directory: client
         run: npm outdated || true
 
-      - name: Outdated server (informative)
+      - name: Outdated server (informatif)
         working-directory: server
         run: npm outdated || true
