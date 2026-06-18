@@ -209,7 +209,8 @@ jobs:
           image-ref: p7-p7-client
           exit-code: 1
           severity: CRITICAL,HIGH
-          format: table
+          format: sarif
+          output: trivy-client.sarif
 
       - name: Scan server image
         uses: aquasecurity/trivy-action@master
@@ -217,4 +218,12 @@ jobs:
           image-ref: p7-p7-server
           exit-code: 1
           severity: CRITICAL,HIGH
-          format: table
+          format: sarif
+          output: trivy-server.sarif
+
+      - name: Upload Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .
+          category: trivy
