@@ -175,7 +175,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: p7-p7-client
-          exit-code: 1
+          exit-code: 0
           severity: CRITICAL,HIGH
           format: sarif
           output: trivy-client.sarif
@@ -184,21 +184,31 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: p7-p7-server
-          exit-code: 1
+          exit-code: 0
           severity: CRITICAL,HIGH
           format: sarif
           output: trivy-server.sarif
 
       - name: Upload Trivy client results
-        if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-client.sarif
           category: trivy-client
 
       - name: Upload Trivy server results
-        if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-server.sarif
           category: trivy-server
+
+      - name: Check vulnerabilities
+        run: |
+          node -e "
+            const client = require('./trivy-client.sarif');
+            const server = require('./trivy-server.sarif');
+            const count = r => r.runs?.[0]?.results?.length || 0;
+            const cc = count(client), sc = count(server);
+            if (cc > 0) console.log(\`::error::Client image - \${cc} vulnerability(ies) found - check Security tab for details\`);
+            if (sc > 0) console.log(\`::error::Server image - \${sc} vulnerability(ies) found - check Security tab for details\`);
+            if (cc > 0 || sc > 0) process.exit(1);
+          "
