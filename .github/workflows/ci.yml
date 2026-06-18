@@ -165,3 +165,24 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Save images
+        run: |
+          docker save p7-p7-client -o client-image.tar
+          docker save p7-p7-server -o server-image.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: "*.tar"
+          retention-days: 1
