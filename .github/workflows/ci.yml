@@ -32,7 +32,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           create_issues: false
           working_directory: client
-          extra_options: --omit=dev
+          production_flag: true
 
       - name: Audit server prod deps (bloquant)
         uses: oke-py/npm-audit-action@v2
@@ -41,7 +41,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           create_issues: false
           working_directory: server
-          extra_options: --omit=dev
+          production_flag: true
 
       - name: Audit client dev deps (informatif)
         working-directory: client
