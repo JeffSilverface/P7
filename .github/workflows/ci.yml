@@ -27,24 +27,76 @@ jobs:
 
       - name: Audit client prod deps (bloquant)
         working-directory: client
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          npm audit --json --omit=dev --audit-level=high > audit-prod.json 2>/dev/null || true
+          node -e "
+            const r = require('./audit-prod.json');
+            Object.values(r.vulnerabilities || {}).forEach(v => {
+              if (['high','critical'].includes(v.severity)) {
+                console.log(\`::error::[\${v.severity.toUpperCase()}] \${v.name} - \${v.title || v.via?.[0]?.title || 'vulnerability detected'}\`);
+              }
+            });
+            if (r.metadata?.vulnerabilities?.high > 0 || r.metadata?.vulnerabilities?.critical > 0) process.exit(1);
+          "
 
       - name: Audit server prod deps (bloquant)
         working-directory: server
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          npm audit --json --omit=dev --audit-level=high > audit-prod.json 2>/dev/null || true
+          node -e "
+            const r = require('./audit-prod.json');
+            Object.values(r.vulnerabilities || {}).forEach(v => {
+              if (['high','critical'].includes(v.severity)) {
+                console.log(\`::error::[\${v.severity.toUpperCase()}] \${v.name} - \${v.title || v.via?.[0]?.title || 'vulnerability detected'}\`);
+              }
+            });
+            if (r.metadata?.vulnerabilities?.high > 0 || r.metadata?.vulnerabilities?.critical > 0) process.exit(1);
+          "
 
       - name: Audit client dev deps (informatif)
         working-directory: client
-        run: npm audit --audit-level=high || true
+        run: |
+          npm audit --json --audit-level=high > audit.json 2>/dev/null || true
+          node -e "
+            const r = require('./audit.json');
+            Object.values(r.vulnerabilities || {}).forEach(v => {
+              if (['high','critical'].includes(v.severity)) {
+                console.log(\`::warning::[\${v.severity.toUpperCase()}] \${v.name} - \${v.title || v.via?.[0]?.title || 'vulnerability detected'}\`);
+              }
+            });
+          " || true
 
       - name: Audit server dev deps (informatif)
         working-directory: server
-        run: npm audit --audit-level=high || true
+        run: |
+          npm audit --json --audit-level=high > audit.json 2>/dev/null || true
+          node -e "
+            const r = require('./audit.json');
+            Object.values(r.vulnerabilities || {}).forEach(v => {
+              if (['high','critical'].includes(v.severity)) {
+                console.log(\`::warning::[\${v.severity.toUpperCase()}] \${v.name} - \${v.title || v.via?.[0]?.title || 'vulnerability detected'}\`);
+              }
+            });
+          " || true
 
       - name: Outdated client (informatif)
         working-directory: client
-        run: npm outdated || true
+        run: |
+          npm outdated --json > outdated.json 2>/dev/null || true
+          node -e "
+            const r = require('./outdated.json');
+            Object.entries(r).forEach(([name, v]) => {
+              console.log(\`::warning::[OUTDATED] \${name} - current: \${v.current} → latest: \${v.latest}\`);
+            });
+          " || true
 
       - name: Outdated server (informatif)
         working-directory: server
-        run: npm outdated || true
+        run: |
+          npm outdated --json > outdated.json 2>/dev/null || true
+          node -e "
+            const r = require('./outdated.json');
+            Object.entries(r).forEach(([name, v]) => {
+              console.log(\`::warning::[OUTDATED] \${name} - current: \${v.current} → latest: \${v.latest}\`);
+            });
+          " || true
