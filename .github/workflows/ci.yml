@@ -31,18 +31,10 @@ jobs:
           npm audit --json --omit=dev --audit-level=high > audit-prod.json 2>/dev/null || true
           node -e "
             const r = require('./audit-prod.json');
-            Object.values(r.vulnerabilities || {}).forEach(v => {
-              if (!['high','critical'].includes(v.severity)) return;
-              const via = v.via || [];
-              const direct = via.filter(x => typeof x === 'object');
-              const indirect = via.filter(x => typeof x === 'string');
-              const title = direct.length > 0
-                ? direct.map(x => x.title).join(', ')
-                : 'vulnerable via ' + indirect.join(', ');
-              const url = direct[0]?.url ? ' - ' + direct[0].url : '';
-              console.log(\`::error::[\${v.severity.toUpperCase()}] \${v.name} - \${title}\${url}\`);
-            });
-            if (r.metadata?.vulnerabilities?.high > 0 || r.metadata?.vulnerabilities?.critical > 0) process.exit(1);
+            const m = r.metadata?.vulnerabilities || {};
+            if (m.critical > 0 || m.high > 0)
+              console.log(\`::error::Client prod deps - \${m.critical || 0} critical, \${m.high || 0} high vulnerabilities found - run 'npm audit' for details\`);
+            if (m.critical > 0 || m.high > 0) process.exit(1);
           "
 
       - name: Audit server prod deps (bloquant)
@@ -51,18 +43,10 @@ jobs:
           npm audit --json --omit=dev --audit-level=high > audit-prod.json 2>/dev/null || true
           node -e "
             const r = require('./audit-prod.json');
-            Object.values(r.vulnerabilities || {}).forEach(v => {
-              if (!['high','critical'].includes(v.severity)) return;
-              const via = v.via || [];
-              const direct = via.filter(x => typeof x === 'object');
-              const indirect = via.filter(x => typeof x === 'string');
-              const title = direct.length > 0
-                ? direct.map(x => x.title).join(', ')
-                : 'vulnerable via ' + indirect.join(', ');
-              const url = direct[0]?.url ? ' - ' + direct[0].url : '';
-              console.log(\`::error::[\${v.severity.toUpperCase()}] \${v.name} - \${title}\${url}\`);
-            });
-            if (r.metadata?.vulnerabilities?.high > 0 || r.metadata?.vulnerabilities?.critical > 0) process.exit(1);
+            const m = r.metadata?.vulnerabilities || {};
+            if (m.critical > 0 || m.high > 0)
+              console.log(\`::error::Server prod deps - \${m.critical || 0} critical, \${m.high || 0} high vulnerabilities found - run 'npm audit' for details\`);
+            if (m.critical > 0 || m.high > 0) process.exit(1);
           "
 
       - name: Audit client dev deps (informatif)
@@ -71,17 +55,9 @@ jobs:
           npm audit --json --audit-level=high > audit.json 2>/dev/null || true
           node -e "
             const r = require('./audit.json');
-            Object.values(r.vulnerabilities || {}).forEach(v => {
-              if (!['high','critical'].includes(v.severity)) return;
-              const via = v.via || [];
-              const direct = via.filter(x => typeof x === 'object');
-              const indirect = via.filter(x => typeof x === 'string');
-              const title = direct.length > 0
-                ? direct.map(x => x.title).join(', ')
-                : 'vulnerable via ' + indirect.join(', ');
-              const url = direct[0]?.url ? ' - ' + direct[0].url : '';
-              console.log(\`::warning::[\${v.severity.toUpperCase()}] \${v.name} - \${title}\${url}\`);
-            });
+            const m = r.metadata?.vulnerabilities || {};
+            if (m.critical > 0 || m.high > 0)
+              console.log(\`::warning::Client dev deps - \${m.critical || 0} critical, \${m.high || 0} high vulnerabilities found - run 'npm audit' for details\`);
           " || true
 
       - name: Audit server dev deps (informatif)
@@ -90,17 +66,9 @@ jobs:
           npm audit --json --audit-level=high > audit.json 2>/dev/null || true
           node -e "
             const r = require('./audit.json');
-            Object.values(r.vulnerabilities || {}).forEach(v => {
-              if (!['high','critical'].includes(v.severity)) return;
-              const via = v.via || [];
-              const direct = via.filter(x => typeof x === 'object');
-              const indirect = via.filter(x => typeof x === 'string');
-              const title = direct.length > 0
-                ? direct.map(x => x.title).join(', ')
-                : 'vulnerable via ' + indirect.join(', ');
-              const url = direct[0]?.url ? ' - ' + direct[0].url : '';
-              console.log(\`::warning::[\${v.severity.toUpperCase()}] \${v.name} - \${title}\${url}\`);
-            });
+            const m = r.metadata?.vulnerabilities || {};
+            if (m.critical > 0 || m.high > 0)
+              console.log(\`::warning::Server dev deps - \${m.critical || 0} critical, \${m.high || 0} high vulnerabilities found - run 'npm audit' for details\`);
           " || true
 
       - name: Outdated client (informatif)
@@ -109,9 +77,9 @@ jobs:
           npm outdated --json > outdated.json 2>/dev/null || true
           node -e "
             const r = require('./outdated.json');
-            Object.entries(r).forEach(([name, v]) => {
-              console.log(\`::warning::[OUTDATED] \${name} - current: \${v.current} → latest: \${v.latest}\`);
-            });
+            const count = Object.keys(r).length;
+            if (count > 0)
+              console.log(\`::warning::Client - \${count} outdated package(s) - run 'npm outdated' for details\`);
           " || true
 
       - name: Outdated server (informatif)
@@ -120,9 +88,9 @@ jobs:
           npm outdated --json > outdated.json 2>/dev/null || true
           node -e "
             const r = require('./outdated.json');
-            Object.entries(r).forEach(([name, v]) => {
-              console.log(\`::warning::[OUTDATED] \${name} - current: \${v.current} → latest: \${v.latest}\`);
-            });
+            const count = Object.keys(r).length;
+            if (count > 0)
+              console.log(\`::warning::Server - \${count} outdated package(s) - run 'npm outdated' for details\`);
           " || true
 
   test:
@@ -221,9 +189,16 @@ jobs:
           format: sarif
           output: trivy-server.sarif
 
-      - name: Upload Trivy results
+      - name: Upload Trivy client results
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: .
-          category: trivy
+          sarif_file: trivy-client.sarif
+          category: trivy-client
+
+      - name: Upload Trivy server results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-server.sarif
+          category: trivy-server
