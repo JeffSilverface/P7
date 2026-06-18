@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Audit client
+        working-directory: client
+        run: |
+          npm install --ignore-scripts
+          npm audit --audit-level=high
+
+      - name: Audit server
+        working-directory: server
+        run: |
+          npm install --ignore-scripts
+          npm audit --audit-level=high
+
+      - name: Outdated client (informative)
+        working-directory: client
+        run: npm outdated || true
+
+      - name: Outdated server (informative)
+        working-directory: server
+        run: npm outdated || true
