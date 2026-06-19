@@ -208,11 +208,11 @@ jobs:
           docker compose up -d
           sleep 20
 
-      # - name: ZAP AJAX Spider
-      #   uses: zaproxy/action-ajax-spider@v0.3.0
-      #   with:
-      #     target: http://localhost:4200
-      #     allow_issue_writing: false
+      - name: ZAP AJAX Spider
+        uses: zaproxy/action-ajax-spider@v0.3.0
+        with:
+          target: http://localhost:4200
+          allow_issue_writing: false
 
       - name: ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
