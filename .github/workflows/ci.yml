@@ -8,7 +8,7 @@ on:
 
 jobs:
   audit:
-    name: Security Audit
+    name: Packages Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -94,7 +94,7 @@ jobs:
           " || true
 
   test:
-    name: Tests
+    name: Frontend/Backend Tests
     runs-on: ubuntu-latest
     needs: audit
     steps:
@@ -121,7 +121,7 @@ jobs:
         run: npm test -- --run
 
   sonarcloud:
-    name: SonarCloud SAST
+    name: SonarCloud Tests
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -188,7 +188,7 @@ jobs:
           format: table
 
   dast:
-    name: OWASP ZAP DAST
+    name: Owasp ZAP scan
     runs-on: ubuntu-latest
     needs: build
     steps:
