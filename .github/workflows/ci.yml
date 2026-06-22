@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   audit:
@@ -219,3 +226,35 @@ jobs:
       - name: Stop app
         if: always()
         run: docker compose down
+
+  security-alert:
+    name: Security Alert
+    runs-on: ubuntu-latest
+    needs: [audit, trivy, dast]
+    if: ${{ always() && github.event_name == 'schedule' && (needs.audit.result == 'failure' || needs.trivy.result == 'failure' || needs.dast.result == 'failure') }}
+    steps:
+      - name: Open or update alert issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_RESULT: ${{ needs.audit.result }}
+          TRIVY_RESULT: ${{ needs.trivy.result }}
+          DAST_RESULT: ${{ needs.dast.result }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Security scan failed"
+          body="A scheduled security scan failed.
+
+          Results:
+          - Packages audit: ${AUDIT_RESULT}
+          - Trivy image scan: ${TRIVY_RESULT}
+          - OWASP ZAP scan: ${DAST_RESULT}
+
+          Workflow run: ${RUN_URL}"
+
+          issue_number="$(gh issue list --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
+
+          if [ -n "${issue_number}" ]; then
+            gh issue comment "${issue_number}" --body "${body}"
+          else
+            gh issue create --title "${title}" --body "${body}"
+          fi
