@@ -7,7 +7,7 @@ RUN npx prisma@5 generate
 RUN npm run build
 
 FROM node:24-alpine
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl && npm install -g npm@latest
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
