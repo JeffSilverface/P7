@@ -1,6 +1,6 @@
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
-import react from "eslint-plugin-react";
+import eslintReact from "@eslint-react/eslint-plugin";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
@@ -28,7 +28,7 @@ export default [
 
     plugins: {
       "@typescript-eslint": tseslint,
-      react: react,
+      "@eslint-react": eslintReact,
       "react-hooks": reactHooks,
     },
     rules: {
@@ -41,13 +41,7 @@ export default [
         },
       ],
       "@typescript-eslint/no-explicit-any": "warn",
-      "react/prop-types": "off",
       "react-hooks/exhaustive-deps": "warn",
-    },
-    settings: {
-      react: {
-        version: "detect",
-      },
     },
   },
   {
