@@ -179,7 +179,7 @@ p7-dfsjs-starter/
 
 ### Backend
 
-- **Node.js 22 LTS**: JavaScript runtime
+- **Node.js 24 LTS**: JavaScript runtime
 - **Express 5**: Web framework
 - **TypeScript 5.x**: Static typing
 - **Prisma**: Modern ORM
@@ -249,8 +249,9 @@ Le pipeline CI se déclenche sur le tag, exécute la validation complète (audit
 
 | Événement | Jobs exécutés |
 |-----------|---------------|
-| `push` sur `main` | Audit dépendances → Tests → SonarCloud + Build Docker |
-| `pull_request` vers `main` | Idem — bloque le merge si échec |
+| `push` sur `staging` | Audit → Tests → SonarCloud + Build → Trivy → ZAP → publish `:staging` |
+| `push` sur `main` | Idem → publish `:latest` |
+| `pull_request` vers `staging` ou `main` | Audit → Tests → SonarCloud + Build → Trivy → ZAP (bloque le merge si échec) |
 | Cron hebdomadaire (lundi 3h) | Pipeline complet + alerte GitHub Issue si échec |
 | `workflow_dispatch` | Exécution manuelle à la demande |
 
@@ -317,20 +318,34 @@ L'application est démarrée via Docker Compose puis soumise à un full scan ZAP
 
 ### Stratégie de déploiement
 
-Le pipeline publie automatiquement les images sur **GitHub Container Registry (GHCR)** après chaque push validé sur `main`.
+Le pipeline publie automatiquement les images sur **GitHub Container Registry (GHCR)** après chaque push validé sur `staging` ou `main`.
+
+#### Flux de livraison
+
+```
+feature → staging  CI complet → image :staging (préprod)
+                       ↓
+                  PR vers main
+                  (approbation humaine + tests obligatoires)
+                       ↓
+          main → CI complet → image :latest (prod)
+```
+
+- **Porte humaine** : merger `staging` → `main` nécessite une PR approuvée manuellement
+- **Gardes-fous** : PR bloquée si tests échouent ou branche pas à jour (ruleset GitHub)
 
 #### Conditions de déclenchement
 
 La publication n'a lieu que si :
-1. L'événement est un `push` sur `main` (pas les PR, pas le cron)
+1. L'événement est un `push` sur `staging` ou `main` (pas les PR, pas le cron)
 2. Les jobs `trivy` et `dast` ont réussi (images saines, app non vulnérable)
 
 #### Images publiées
 
 | Image | Tags produits |
 |-------|--------------|
-| `ghcr.io/<owner>/p7-client` | `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
-| `ghcr.io/<owner>/p7-server` | `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
+| `ghcr.io/<owner>/p7-client` | `staging` (push staging), `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
+| `ghcr.io/<owner>/p7-server` | `staging` (push staging), `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
 
 `docker/metadata-action@v6` génère automatiquement les tags selon le déclencheur.
 
@@ -338,9 +353,9 @@ La publication n'a lieu que si :
 
 | Commande | Objectif | Définie dans | Exécutée |
 |----------|----------|--------------|----------|
-| `docker/login-action@v4` | Authentification GHCR via `GITHUB_TOKEN` | `ci.yml` job `publish` | CI push main ou tag |
-| `docker/metadata-action@v6` | Génère les tags d'image selon le déclencheur | `ci.yml` job `publish` | CI push main ou tag |
-| `docker/build-push-action@v7` | Build + push image vers GHCR | `ci.yml` job `publish` | CI push main ou tag |
+| `docker/login-action@v4` | Authentification GHCR via `GITHUB_TOKEN` | `ci.yml` job `publish` | CI push staging, main ou tag |
+| `docker/metadata-action@v6` | Génère les tags d'image selon le déclencheur | `ci.yml` job `publish` | CI push staging, main ou tag |
+| `docker/build-push-action@v7` | Build + push image vers GHCR | `ci.yml` job `publish` | CI push staging, main ou tag |
 | `docker compose build` | Build local pour scan Trivy/ZAP | `ci.yml` job `build` | CI tous déclencheurs |
 
 #### Authentification
