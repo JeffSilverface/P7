@@ -11,7 +11,7 @@ This project follows a monorepo structure with separate frontend and backend app
 
 ## Prerequisites
 
-- **Node.js** >= 22.0.0
+- **Node.js** >= 24.0.0
 - **npm** >= 10.0.0
 
 ## Installation
@@ -204,6 +204,157 @@ p7-dfsjs-starter/
 - **Custom Hooks**: Extract complex logic into reusable hooks
 - **API Layer**: Centralized API calls in service files
 - **Validation**: Use Zod schemas for input validation
+
+## Politique de versioning et releases
+
+### SemVer
+
+Ce projet suit [Semantic Versioning](https://semver.org) : `MAJOR.MINOR.PATCH`
+
+| Incrément | Quand |
+|-----------|-------|
+| `MAJOR` | Changement incompatible avec la version précédente (breaking change API, migration BDD destructive) |
+| `MINOR` | Nouvelle fonctionnalité rétrocompatible |
+| `PATCH` | Correction de bug rétrocompatible |
+
+### Créer une version taguée
+
+La publication d'une version versionnée est une action humaine volontaire.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Le pipeline CI se déclenche sur le tag, exécute la validation complète (audit → tests → sonar → build → trivy → ZAP), puis publie les images avec le tag SemVer si tout passe.
+
+### Choix de conception
+
+- **Action humaine requise** : un tag = une décision délibérée de livrer une version stable
+- **Pas de release candidate automatique** : les PR sont validées par la CI, le tag marque une version figée
+- **Pas de branche par release** : on tague depuis `main` après merge
+
+---
+
+## Plan de testing périodique
+
+### Types de tests
+
+| Périmètre | Framework | Localisation |
+|-----------|-----------|--------------|
+| Frontend (React/TypeScript) | Vitest | `client/` |
+| Backend (Express/Prisma) | Vitest | `server/` |
+
+### Déclencheurs
+
+| Événement | Jobs exécutés |
+|-----------|---------------|
+| `push` sur `main` | Audit dépendances → Tests → SonarCloud + Build Docker |
+| `pull_request` vers `main` | Idem — bloque le merge si échec |
+| Cron hebdomadaire (lundi 3h) | Pipeline complet + alerte GitHub Issue si échec |
+| `workflow_dispatch` | Exécution manuelle à la demande |
+
+### Objectifs
+
+- **Validation fonctionnelle** : chaque test unitaire/intégration valide un comportement métier
+- **Non-régression** : les tests s'exécutent sur chaque PR pour détecter toute régression avant merge
+- **Qualité** : SonarCloud mesure la couverture, les code smells et la dette technique en continu
+
+---
+
+## Plan de sécurité
+
+### Analyse SonarQube Cloud
+
+SonarCloud analyse les sources `client/src` et `server/src` après chaque passage des tests. Il surveille :
+
+- **Vulnérabilités** : failles de sécurité dans le code (injections, mauvaise gestion des secrets, etc.)
+- **Code smells** : code fragile ou difficile à maintenir
+- **Couverture de tests** : via les rapports LCOV générés par Vitest
+
+### Audit des dépendances (npm audit)
+
+- Les dépendances de **production** sont bloquantes : toute vulnérabilité `high` ou `critical` arrête le pipeline
+- Les dépendances de **développement** sont informatives : avertissement sans blocage
+- Les paquets obsolètes sont signalés en avertissement
+
+### Scan des images Docker (Trivy)
+
+Les images buildées sont scannées par Trivy avant tout déploiement. Toute vulnérabilité `HIGH` ou `CRITICAL` dans une image arrête le pipeline.
+
+### Analyse dynamique DAST (OWASP ZAP)
+
+L'application est démarrée via Docker Compose puis soumise à un full scan ZAP qui simule des attaques réelles (XSS, injections, etc.). Les faux positifs connus sont exclus via `.zap/rules.tsv`.
+
+### Bonnes pratiques CI
+
+- **Secrets** : `SONAR_TOKEN` stocké dans GitHub Secrets, jamais en clair
+- **Supply chain** : `npm install --ignore-scripts` empêche l'exécution de scripts malveillants à l'installation
+- **Permissions GitHub** : le workflow déclare `contents: read` et `issues: write` uniquement — principe du moindre privilège
+- **Alertes automatiques** : en cas d'échec du cron hebdomadaire, une GitHub Issue est créée ou mise à jour automatiquement
+
+---
+
+## Principes de conteneurisation et de déploiement
+
+### Dockerfiles
+
+**Client** ([client/Dockerfile](client/Dockerfile)) — build multi-stage :
+1. Stage `builder` : Node 24-alpine compile le frontend Vite (`npm run build`)
+2. Stage final : nginx:alpine sert les fichiers statiques (`dist/`), avec `apk upgrade` pour patcher les vulnérabilités OS
+
+**Server** ([server/Dockerfile](server/Dockerfile)) — build multi-stage :
+1. Stage `builder` : Node 24-alpine compile le TypeScript et génère le client Prisma
+2. Stage final : Node 24-alpine avec uniquement les dépendances de production (`--omit=dev`), npm/npx supprimés pour réduire la surface d'attaque
+
+### Docker Compose
+
+[docker-compose.yml](docker-compose.yml) orchestre les deux services pour les environnements de test CI et de développement local :
+
+- `p7-server` expose le port `8080`, monte un volume persistant pour la base SQLite
+- `p7-client` expose le port `4200` (nginx), démarre après `p7-server`
+- Les migrations Prisma s'exécutent automatiquement au démarrage du serveur
+
+### Stratégie de déploiement
+
+Le pipeline publie automatiquement les images sur **GitHub Container Registry (GHCR)** après chaque push validé sur `main`.
+
+#### Conditions de déclenchement
+
+La publication n'a lieu que si :
+1. L'événement est un `push` sur `main` (pas les PR, pas le cron)
+2. Les jobs `trivy` et `dast` ont réussi (images saines, app non vulnérable)
+
+#### Images publiées
+
+| Image | Tags produits |
+|-------|--------------|
+| `ghcr.io/<owner>/p7-client` | `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
+| `ghcr.io/<owner>/p7-server` | `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
+
+`docker/metadata-action@v6` génère automatiquement les tags selon le déclencheur.
+
+#### Commandes importantes
+
+| Commande | Objectif | Définie dans | Exécutée |
+|----------|----------|--------------|----------|
+| `docker/login-action@v4` | Authentification GHCR via `GITHUB_TOKEN` | `ci.yml` job `publish` | CI push main ou tag |
+| `docker/metadata-action@v6` | Génère les tags d'image selon le déclencheur | `ci.yml` job `publish` | CI push main ou tag |
+| `docker/build-push-action@v7` | Build + push image vers GHCR | `ci.yml` job `publish` | CI push main ou tag |
+| `docker compose build` | Build local pour scan Trivy/ZAP | `ci.yml` job `build` | CI tous déclencheurs |
+
+#### Authentification
+
+`GITHUB_TOKEN` est injecté automatiquement par GitHub Actions — aucun secret supplémentaire à configurer. Permission `packages: write` déclarée dans le workflow.
+
+#### Utilisation des images publiées
+
+```bash
+docker pull ghcr.io/<owner>/p7-client:latest
+docker pull ghcr.io/<owner>/p7-server:latest
+```
+
+---
 
 ## License
 
