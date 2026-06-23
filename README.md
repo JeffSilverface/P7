@@ -205,6 +205,37 @@ p7-dfsjs-starter/
 - **API Layer**: Centralized API calls in service files
 - **Validation**: Use Zod schemas for input validation
 
+## Politique de versioning et releases
+
+### SemVer
+
+Ce projet suit [Semantic Versioning](https://semver.org) : `MAJOR.MINOR.PATCH`
+
+| Incrément | Quand |
+|-----------|-------|
+| `MAJOR` | Changement incompatible avec la version précédente (breaking change API, migration BDD destructive) |
+| `MINOR` | Nouvelle fonctionnalité rétrocompatible |
+| `PATCH` | Correction de bug rétrocompatible |
+
+### Créer une version taguée
+
+La publication d'une version versionnée est une action humaine volontaire.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Le pipeline CI se déclenche sur le tag, exécute la validation complète (audit → tests → sonar → build → trivy → ZAP), puis publie les images avec le tag SemVer si tout passe.
+
+### Choix de conception
+
+- **Action humaine requise** : un tag = une décision délibérée de livrer une version stable
+- **Pas de release candidate automatique** : les PR sont validées par la CI, le tag marque une version figée
+- **Pas de branche par release** : on tague depuis `main` après merge
+
+---
+
 ## Plan de testing périodique
 
 ### Types de tests
@@ -296,19 +327,20 @@ La publication n'a lieu que si :
 
 #### Images publiées
 
-| Image | Tags |
-|-------|------|
-| `ghcr.io/<owner>/p7-client` | `latest`, `<sha>` |
-| `ghcr.io/<owner>/p7-server` | `latest`, `<sha>` |
+| Image | Tags produits |
+|-------|--------------|
+| `ghcr.io/<owner>/p7-client` | `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
+| `ghcr.io/<owner>/p7-server` | `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
 
-Le tag `latest` pointe toujours sur le dernier build validé. Le tag SHA permet de revenir à une version précise.
+`docker/metadata-action@v6` génère automatiquement les tags selon le déclencheur.
 
 #### Commandes importantes
 
 | Commande | Objectif | Définie dans | Exécutée |
 |----------|----------|--------------|----------|
-| `docker/login-action@v4` | Authentification GHCR via `GITHUB_TOKEN` | `ci.yml` job `publish` | CI push main |
-| `docker/build-push-action@v7` | Build + push image vers GHCR | `ci.yml` job `publish` | CI push main |
+| `docker/login-action@v4` | Authentification GHCR via `GITHUB_TOKEN` | `ci.yml` job `publish` | CI push main ou tag |
+| `docker/metadata-action@v6` | Génère les tags d'image selon le déclencheur | `ci.yml` job `publish` | CI push main ou tag |
+| `docker/build-push-action@v7` | Build + push image vers GHCR | `ci.yml` job `publish` | CI push main ou tag |
 | `docker compose build` | Build local pour scan Trivy/ZAP | `ci.yml` job `build` | CI tous déclencheurs |
 
 #### Authentification
