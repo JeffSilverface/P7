@@ -18,6 +18,7 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/prisma ./prisma
 EXPOSE 8080
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown -R node:node /app
+USER node
 
 CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node dist/index.js"]
