@@ -1,6 +1,6 @@
 # Orion CRM
 
-A simplified Customer Relationship Management (CRM) application built with the MERN stack (modernized with TypeScript, Vite, and Prisma).
+A simplified Customer Relationship Management (CRM) application built with the MERN stack (modernized with TypeScript, Vite, and Prisma ).
 
 ## Architecture
 
@@ -211,11 +211,11 @@ p7-dfsjs-starter/
 
 Ce projet suit [Semantic Versioning](https://semver.org) : `MAJOR.MINOR.PATCH`
 
-| Incrément | Quand |
-|-----------|-------|
-| `MAJOR` | Changement incompatible avec la version précédente (breaking change API, migration BDD destructive) |
-| `MINOR` | Nouvelle fonctionnalité rétrocompatible |
-| `PATCH` | Correction de bug rétrocompatible |
+| Incrément | Quand                                                                                               |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `MAJOR`   | Changement incompatible avec la version précédente (breaking change API, migration BDD destructive) |
+| `MINOR`   | Nouvelle fonctionnalité rétrocompatible                                                             |
+| `PATCH`   | Correction de bug rétrocompatible                                                                   |
 
 ### Créer une version taguée
 
@@ -240,20 +240,20 @@ Le pipeline CI se déclenche sur le tag, exécute la validation complète (audit
 
 ### Types de tests
 
-| Périmètre | Framework | Localisation |
-|-----------|-----------|--------------|
-| Frontend (React/TypeScript) | Vitest | `client/` |
-| Backend (Express/Prisma) | Vitest | `server/` |
+| Périmètre                   | Framework | Localisation |
+| --------------------------- | --------- | ------------ |
+| Frontend (React/TypeScript) | Vitest    | `client/`    |
+| Backend (Express/Prisma)    | Vitest    | `server/`    |
 
 ### Déclencheurs
 
-| Événement | Jobs exécutés |
-|-----------|---------------|
-| `push` sur `staging` | Audit → Tests → SonarCloud + Build → Trivy → ZAP → publish `:staging` |
-| `push` sur `main` | Idem → publish `:latest` |
+| Événement                               | Jobs exécutés                                                               |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| `push` sur `staging`                    | Audit → Tests → SonarCloud + Build → Trivy → ZAP → publish `:staging`       |
+| `push` sur `main`                       | Idem → publish `:latest`                                                    |
 | `pull_request` vers `staging` ou `main` | Audit → Tests → SonarCloud + Build → Trivy → ZAP (bloque le merge si échec) |
-| Cron hebdomadaire (lundi 3h) | Pipeline complet + alerte GitHub Issue si échec |
-| `workflow_dispatch` | Exécution manuelle à la demande |
+| Cron hebdomadaire (lundi 3h)            | Pipeline complet + alerte GitHub Issue si échec                             |
+| `workflow_dispatch`                     | Exécution manuelle à la demande                                             |
 
 ### Objectifs
 
@@ -301,10 +301,12 @@ L'application est démarrée via Docker Compose puis soumise à un full scan ZAP
 ### Dockerfiles
 
 **Client** ([client/Dockerfile](client/Dockerfile)) — build multi-stage :
+
 1. Stage `builder` : Node 24-alpine compile le frontend Vite (`npm run build`)
 2. Stage final : nginx:alpine sert les fichiers statiques (`dist/`), avec `apk upgrade` pour patcher les vulnérabilités OS
 
 **Server** ([server/Dockerfile](server/Dockerfile)) — build multi-stage :
+
 1. Stage `builder` : Node 24-alpine compile le TypeScript et génère le client Prisma
 2. Stage final : Node 24-alpine avec uniquement les dépendances de production (`--omit=dev`), npm/npx supprimés pour réduire la surface d'attaque
 
@@ -337,13 +339,14 @@ feature → staging  CI complet → image :staging (préprod)
 #### Conditions de déclenchement
 
 La publication n'a lieu que si :
+
 1. L'événement est un `push` sur `staging` ou `main` (pas les PR, pas le cron)
 2. Les jobs `trivy` et `dast` ont réussi (images saines, app non vulnérable)
 
 #### Images publiées
 
-| Image | Tags produits |
-|-------|--------------|
+| Image                       | Tags produits                                                                            |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
 | `ghcr.io/<owner>/p7-client` | `staging` (push staging), `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
 | `ghcr.io/<owner>/p7-server` | `staging` (push staging), `latest` (push main), `v1.0.0` (tag), `sha-abc1234` (toujours) |
 
@@ -351,12 +354,12 @@ La publication n'a lieu que si :
 
 #### Commandes importantes
 
-| Commande | Objectif | Définie dans | Exécutée |
-|----------|----------|--------------|----------|
-| `docker/login-action@v4` | Authentification GHCR via `GITHUB_TOKEN` | `ci.yml` job `publish` | CI push staging, main ou tag |
-| `docker/metadata-action@v6` | Génère les tags d'image selon le déclencheur | `ci.yml` job `publish` | CI push staging, main ou tag |
-| `docker/build-push-action@v7` | Build + push image vers GHCR | `ci.yml` job `publish` | CI push staging, main ou tag |
-| `docker compose build` | Build local pour scan Trivy/ZAP | `ci.yml` job `build` | CI tous déclencheurs |
+| Commande                      | Objectif                                     | Définie dans           | Exécutée                     |
+| ----------------------------- | -------------------------------------------- | ---------------------- | ---------------------------- |
+| `docker/login-action@v4`      | Authentification GHCR via `GITHUB_TOKEN`     | `ci.yml` job `publish` | CI push staging, main ou tag |
+| `docker/metadata-action@v6`   | Génère les tags d'image selon le déclencheur | `ci.yml` job `publish` | CI push staging, main ou tag |
+| `docker/build-push-action@v7` | Build + push image vers GHCR                 | `ci.yml` job `publish` | CI push staging, main ou tag |
+| `docker compose build`        | Build local pour scan Trivy/ZAP              | `ci.yml` job `build`   | CI tous déclencheurs         |
 
 #### Authentification
 
