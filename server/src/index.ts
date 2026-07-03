@@ -1,5 +1,6 @@
 import express, { Application, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import organizationRoutes from './routes/organizationRoutes';
 import contactRoutes from './routes/contactRoutes';
@@ -13,6 +14,7 @@ const PORT = process.env.PORT || 8080;
 app.disable('x-powered-by');
 
 // Middleware
+app.use(helmet());
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN || 'http://localhost:4200',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],

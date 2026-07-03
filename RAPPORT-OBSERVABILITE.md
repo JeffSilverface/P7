@@ -522,7 +522,7 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 |---|---|---|---|---|
 | ✅ P1 | Restreindre CORS avec `ALLOWED_ORIGIN` | 5 min | A05 | Corrigé |
 | ✅ P1 | Désactiver `X-Powered-By` | 1 min | A05 | Corrigé |
-| 🟡 P2 | Ajouter `helmet` (headers HTTP sécurisés) | 30 min | A05 | CSP, HSTS, X-Frame-Options |
+| ✅ P2 | Ajouter `helmet` (headers HTTP sécurisés) | 30 min | A05 | Corrigé — CSP, HSTS, X-Frame-Options activés |
 | 🟡 P2 | Tests controllers + services | 2–3h | — | Couverture globale à 32% |
 | 🟡 P2 | Corriger labels formulaires (accessibilité) | 1h | — | WCAG 2.1, 6 occurrences |
 | 🟢 P3 | Rate limiting sur `/api/logs` | 30 min | A04 | Prévention flood de logs |
@@ -549,7 +549,7 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 | A02 | Cryptographic Failures | ✅ Pas de données sensibles stockées |
 | A03 | Injection | ✅ Prisma ORM (requêtes paramétrées) + Zod |
 | A04 | Insecure Design | 🟡 Rate limiting absent sur /api/logs |
-| A05 | Security Misconfiguration | 🔴 CORS + X-Powered-By (à corriger P1) |
+| A05 | Security Misconfiguration | ✅ CORS restreint + X-Powered-By désactivé + Helmet (headers HTTP) |
 | A06 | Vulnerable Components | ✅ npm audit + Trivy en CI |
 | A07 | Auth Failures | ⚠️ Hors scope MVP |
 | A08 | Software Integrity | ✅ --ignore-scripts + actions versionnées |
