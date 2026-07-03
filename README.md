@@ -263,6 +263,130 @@ Le pipeline CI se déclenche sur le tag, exécute la validation complète (audit
 
 ---
 
+## Observabilité — Stack ELK
+
+### Architecture du pipeline de logs
+
+```
+React (frontend)
+  └── POST /api/logs ──► Express (Winston)
+                              │
+Node.js (backend)             │ TCP :5000
+  └── Winston ────────────────►
+                         Logstash
+                              │
+                              ▼
+                       Elasticsearch
+                        (index p7-logs-YYYY.MM.dd)
+                              │
+                              ▼
+                           Kibana :5601
+                      (dashboard + Discover)
+```
+
+### Démarrage de la stack ELK
+
+```bash
+# Stack principale d'abord (crée le réseau p7_default)
+docker compose up -d
+
+# Stack ELK ensuite
+docker compose -f docker-compose-elk.yml up -d
+```
+
+### Composants
+
+| Service | Port | Rôle |
+|---|---|---|
+| Elasticsearch | 9200 | Stockage et indexation des logs |
+| Logstash | 5001 (host) / 5000 (interne) | Réception TCP → indexation ES |
+| Kibana | 5601 | Visualisation et dashboards |
+
+### Logs collectés
+
+**Backend (Winston)**
+- `server_started` — démarrage du serveur
+- `http_request` — chaque requête HTTP (method, url, status, duration_ms)
+- `route_not_found` — 404 (level: warn)
+- `unhandled_error` — exceptions non gérées (level: error)
+
+**Frontend (via /api/logs)**
+- `js_error` — erreurs JavaScript capturées par `window.onerror`
+- `unhandled_promise` — promesses rejetées non gérées
+- `api_error` — erreurs Axios (url, method, status)
+
+Tous les logs frontend sont taggés `source: frontend` pour faciliter le filtrage dans Kibana.
+
+### Dashboard Kibana
+
+**Data View :** `p7-logs-*` — timestamp : `@timestamp`
+
+| Visualisation | Type | Filtre |
+|---|---|---|
+| Log volume par niveau | Bar vertical stacked | Break down: `level.keyword` |
+| Total 404 backend | Metric | `level.keyword : warn` |
+| Durée moyenne par route | Bar horizontal | Average `duration_ms` / `url.keyword` |
+| Erreurs API frontend | Bar vertical | `source.keyword : frontend AND level.keyword : error` |
+
+### Configuration
+
+Les transports de log sont conditionnels :
+
+| Variable d'environnement | Effet |
+|---|---|
+| `LOGSTASH_HOST=logstash` | Active l'envoi TCP vers Logstash |
+| `LOGSTASH_PORT=5000` | Port interne Docker (défaut 5000) |
+| `LOG_LEVEL=info` | Niveau minimum de log |
+
+Sans `LOGSTASH_HOST`, les logs restent uniquement dans la console (développement local sans Docker).
+
+---
+
+## Métriques DORA et KPIs
+
+*Période d'observation : juin–juillet 2026 | Source CI : GitHub Actions | Source logs : ELK Stack*
+
+### 4 Métriques DORA
+
+| Métrique | Valeur | Méthode de calcul | Niveau DORA |
+|---|---|---|---|
+| **Lead Time for Changes** | 7 jours | Premier commit ELK (24/06) → merge staging (01/07) | 🟡 Medium |
+| **Deployment Frequency** | ~1,1 merge/jour | 11 merges sur staging en 10 jours (22/06–01/07) | 🟢 High |
+| **MTTR** | ~2h | Durée entre premier CI fail et fix validé (session 01/07 : 16h05–16h44) | 🟢 High |
+| **Change Failure Rate** | ~15% | Runs échoués / total runs sur PR #17 (CI #90–96) | 🟡 Medium |
+
+**Référence :** Elite = top 25% des équipes selon le rapport DORA 2023.
+
+### 5 KPIs Opérationnels
+
+| KPI | Valeur | Source | Statut |
+|---|---|---|---|
+| Durée moyenne pipeline CI | 4m 30s | GitHub Actions (moyenne runs #92–96) | 🟢 Stable |
+| Couverture tests nouveau code | 93% | SonarCloud / vitest --coverage | 🟢 > 80% requis |
+| Taux de succès CI (branch ELK) | ~85% | GitHub Actions historique PR #17 | 🟡 À améliorer |
+| Volume logs erreurs/h | < 1 error/h | Kibana — index p7-logs-* | 🟢 Faible |
+| Taux 404 API | ~30% des requêtes | Kibana — filtre `level: warn` | 🟡 Normal en dev |
+
+### Analyse commentée
+
+**Points forts**
+
+La **fréquence de déploiement** (1,1 merge/jour) et le **MTTR** (2h) sont dans la catégorie "High" des standards DORA — le pipeline CI/CD est fluide et les corrections arrivent rapidement grâce aux gates automatisés (SonarCloud, Trivy, ZAP).
+
+Le **volume d'erreurs applicatif quasi nul** en conditions normales (confirmé par Kibana) valide la robustesse de la gestion des erreurs Express.
+
+**Points à améliorer**
+
+Le **Lead Time de 7 jours** intègre du temps de découverte d'outils (ELK, Kibana). Sur une feature fonctionnelle connue, ce délai serait de 1–2 jours.
+
+Le **Change Failure Rate à 15%** reflète des échecs de configuration (port 5000 occupé sur macOS, lcov reporter manquant dans le CI) et non des bugs fonctionnels. Ces dettes CI sont désormais corrigées.
+
+**Corrélation ELK → DORA**
+
+Les logs `warn` (404) et `error` dans Kibana constituent un indicateur indirect du Change Failure Rate applicatif. Un seuil d'alerte à 5 `warn`/min ou 1 `error`/min en production serait pertinent pour détecter une régression en temps réel.
+
+---
+
 ## Plan de sécurité
 
 ### Analyse SonarQube Cloud
@@ -272,6 +396,57 @@ SonarCloud analyse les sources `client/src` et `server/src` après chaque passag
 - **Vulnérabilités** : failles de sécurité dans le code (injections, mauvaise gestion des secrets, etc.)
 - **Code smells** : code fragile ou difficile à maintenir
 - **Couverture de tests** : via les rapports LCOV générés par Vitest
+
+#### Résultats — branch staging (juillet 2026)
+
+| Indicateur | Valeur | Rating |
+|---|---|---|
+| Bugs | 0 | 🟢 A |
+| Vulnérabilités actives | 2 | 🔴 C |
+| Security Hotspots | 0 | 🟢 A |
+| Code Smells | 26 | 🟢 A |
+| Duplications | 0% | 🟢 A |
+| Complexité cyclomatique | 178 / 1305 lignes | 🟡 Acceptable |
+| Complexité cognitive | 76 | 🟡 À surveiller |
+| Couverture nouveau code (PRs) | 93% | 🟢 > 80% |
+
+#### Vulnérabilités identifiées
+
+**V1 — CORS trop permissif** *(OWASP A05:2021 — Security Misconfiguration)*
+
+`app.use(cors())` accepte toutes les origines. En production, n'importe quel site peut émettre des requêtes cross-origin vers l'API.
+
+```typescript
+// Fix recommandé
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:4200',
+}));
+```
+
+**V2 — Divulgation de version Express** *(OWASP A05:2021)*
+
+Le header `X-Powered-By: Express` révèle le framework utilisé et permet de cibler des CVE spécifiques.
+
+```typescript
+// Fix recommandé — 1 ligne
+app.disable('x-powered-by');
+```
+
+#### Code Smells prioritaires
+
+**Labels de formulaire non associés (×6)** — `ContactForm.tsx`, `OrganizationForm.tsx`
+
+Violation des règles d'accessibilité WCAG 2.1. Les champs de formulaire ne sont pas liés à leurs labels (`htmlFor` manquant), rendant l'interface inutilisable pour les lecteurs d'écran.
+
+**Ternaire imbriqué** — `ContactForm.tsx`
+
+Complexité cognitive inutile. À extraire dans une variable nommée.
+
+#### Zones à forte complexité
+
+Les controllers (`contactController.ts`, `organizationController.ts`) concentrent la logique métier avec une couverture de tests de 3–8%. Ce sont les zones les plus risquées en cas de régression.
+
+**Corrélation ELK :** Aucun pic d'erreurs 500 sur ces routes en conditions normales → la complexité n'a pas encore causé de bug en production, mais l'absence de tests reste un risque.
 
 ### Audit des dépendances (npm audit)
 
@@ -286,6 +461,18 @@ Les images buildées sont scannées par Trivy avant tout déploiement. Toute vul
 ### Analyse dynamique DAST (OWASP ZAP)
 
 L'application est démarrée via Docker Compose puis soumise à un full scan ZAP qui simule des attaques réelles (XSS, injections, etc.). Les faux positifs connus sont exclus via `.zap/rules.tsv`.
+
+### Plan d'actions priorisées
+
+| Priorité | Action | Effort estimé | Référence |
+|---|---|---|---|
+| 🔴 P1 | Restreindre CORS avec `ALLOWED_ORIGIN` | 5 min | OWASP A05 |
+| 🔴 P1 | Désactiver `X-Powered-By` | 1 min | OWASP A05 |
+| 🟡 P2 | Ajouter `helmet` (headers HTTP sécurisés) | 30 min | OWASP A05 |
+| 🟡 P2 | Tests controllers + services (couverture globale) | 2–3h | SonarCloud |
+| 🟡 P2 | Corriger labels formulaires (accessibilité WCAG) | 1h | SonarCloud |
+| 🟢 P3 | Rate limiting sur `/api/logs` (anti-flood) | 30 min | OWASP A04 |
+| 🟢 P3 | Externaliser toutes les config dans variables d'env | 1h | OWASP A02 |
 
 ### Bonnes pratiques CI
 

@@ -9,8 +9,14 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 8080;
 
+app.disable('x-powered-by');
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:4200',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type'],
+}));
 app.use(express.json());
 
 // Routes
