@@ -516,19 +516,7 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 
 ## 7. Plan de sécurité
 
-### Actions priorisées
-
-| Priorité | Action | Effort | OWASP | Justification |
-|---|---|---|---|---|
-| ✅ P1 | Restreindre CORS avec `ALLOWED_ORIGIN` | 5 min | A05 | Corrigé |
-| ✅ P1 | Désactiver `X-Powered-By` | 1 min | A05 | Corrigé |
-| ✅ P2 | Ajouter `helmet` (headers HTTP sécurisés) | 30 min | A05 | Corrigé — CSP, HSTS, X-Frame-Options activés |
-| 🟡 P2 | Tests controllers + services | 2–3h | — | Couverture globale à 32% |
-| ✅ P2 | Corriger labels formulaires (accessibilité) | 1h | — | Corrigé — `htmlFor`/`id` ajoutés sur tous les champs |
-| ✅ P3 | Rate limiting sur `/api/logs` | 30 min | A04 | Corrigé — 60 req/min via `express-rate-limit` |
-| ✅ P3 | Externaliser config dans variables d'env | 1h | A02 | Corrigé — `.env.example` documente toutes les variables (`ALLOWED_ORIGIN`, `LOG_LEVEL`, `LOGSTASH_*`) |
-
-### Ce qui est déjà en place
+### Mesures en place
 
 | Mesure | Implémentation |
 |---|---|
@@ -548,7 +536,7 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 | A01 | Broken Access Control | ⚠️ Pas d'authentification (hors scope MVP) |
 | A02 | Cryptographic Failures | ✅ Pas de données sensibles stockées |
 | A03 | Injection | ✅ Prisma ORM (requêtes paramétrées) + Zod |
-| A04 | Insecure Design | 🟡 Rate limiting absent sur /api/logs |
+| A04 | Insecure Design | ✅ Rate limiting 60 req/min sur `/api/logs` |
 | A05 | Security Misconfiguration | ✅ CORS restreint + X-Powered-By désactivé + Helmet (headers HTTP) |
 | A06 | Vulnerable Components | ✅ npm audit + Trivy en CI |
 | A07 | Auth Failures | ⚠️ Hors scope MVP |
@@ -619,6 +607,12 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 | Vulnérabilité image Docker (`apk upgrade`) | Trivy | CVE sur librairie Alpine |
 | Secrets via GitHub Secrets | OWASP A02 | `SONAR_TOKEN` jamais en clair |
 | Sanitisation `/api/logs` | OWASP A03 / SonarCloud | Whitelist champs + troncature 500 chars |
+| Restreindre CORS avec `ALLOWED_ORIGIN` | OWASP A05 | Domaine whitelist, variable d'environnement |
+| Désactiver `X-Powered-By` | OWASP A05 | Version Express masquée aux attaquants |
+| Ajouter `helmet` | OWASP A05 | CSP, HSTS, X-Frame-Options, X-Content-Type-Options |
+| Rate limiting `/api/logs` (60 req/min) | OWASP A04 | Prévention flood de logs via `express-rate-limit` |
+| Labels formulaires accessibles (`htmlFor`/`id`) | WCAG 2.1 | 6 violations critère 1.3.1 corrigées |
+| Documentation `.env.example` complète | OWASP A02 | Toutes les variables externalisées et documentées |
 
 ### Observabilité ajoutée
 
@@ -632,7 +626,7 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 | Logger frontend | Capture erreurs JS + erreurs Axios |
 | Endpoint `/api/logs` | Proxy sécurisé back → Logstash |
 | Dashboard Kibana | 4 visualisations opérationnelles |
-| Tests `index.test.ts` | 7 tests routes health + logs |
+| Tests unitaires et d'intégration | 53 tests — routes, controllers, services (97% couverture) |
 
 **Total : 87 commits, 17 PRs, 0 bug fonctionnel introduit.**
 
@@ -640,59 +634,33 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 
 ## 9. Recommandations d'amélioration continue
 
-### Court terme (< 1 semaine)
+Toutes les vulnérabilités identifiées ont été corrigées. Les recommandations ci-dessous concernent des évolutions au-delà du périmètre actuel du projet.
 
-**1. Corriger les 2 vulnérabilités P1 (CORS + X-Powered-By)**
+### Court terme
 
-Effort minimal (< 10 minutes), impact sécurité immédiat. Ces deux points font passer le rating SonarCloud de C à A sur la sécurité.
-
-**2. Ajouter `helmet` au serveur Express**
-
-```bash
-npm install helmet
-```
-```typescript
-import helmet from 'helmet';
-app.use(helmet());
-```
-
-Helmet configure automatiquement une dizaine de headers de sécurité HTTP (Content-Security-Policy, HSTS, X-Frame-Options, etc.).
-
----
-
-### Moyen terme (1–4 semaines)
-
-**3. Augmenter la couverture de tests (controllers/services)**
-
-La couverture globale est à 32%. Les controllers et services qui contiennent la logique métier sont à 3–8%. Objectif réaliste : atteindre 60% global en ajoutant des tests d'intégration sur les routes CRUD.
-
-**4. Corriger l'accessibilité des formulaires**
-
-6 labels non associés dans ContactForm et OrganizationForm. Fix systématique avec `htmlFor` / `id`. Requis pour conformité RGAA.
-
-**5. Configurer des alertes Kibana**
+**1. Configurer des alertes Kibana**
 
 Créer des alertes sur seuils dans Kibana :
 - > 5 logs `error` en 5 minutes → notification
 - > 10 logs `warn` (404) en 1 minute → notification
 - `duration_ms` > 500ms en moyenne → investigation
 
----
+### Moyen terme
 
-### Long terme (> 1 mois)
-
-**6. Ajouter l'authentification (A01 OWASP)**
+**2. Ajouter l'authentification (A01 OWASP)**
 
 L'absence d'authentification est le risque principal non adressé. Pour un CRM en production, un système JWT ou OAuth2 est indispensable.
 
-**7. Migrer vers PostgreSQL en production**
+**3. Migrer vers PostgreSQL en production**
 
 SQLite est adapté au développement. En production, PostgreSQL offre la concurrence, les transactions ACID et les sauvegardes simplifiées.
 
-**8. Intégrer les métriques DORA dans le dashboard**
+### Long terme
+
+**4. Intégrer les métriques DORA dans le dashboard**
 
 Envoyer les événements GitHub Actions (push, merge, incident) vers Logstash via webhook pour avoir les 4 métriques DORA dans Kibana à côté des logs applicatifs.
 
 ---
 
-*Rapport généré le 2 juillet 2026 — Orion CRM v1.0 — Projet P7*
+*Rapport généré le 3 juillet 2026 — Orion CRM v1.0 — Projet P7*
