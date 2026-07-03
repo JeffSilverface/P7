@@ -1,6 +1,7 @@
 import express, { Application, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import organizationRoutes from './routes/organizationRoutes';
 import contactRoutes from './routes/contactRoutes';
@@ -41,7 +42,14 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Orion CRM API is running' });
 });
 
-app.post('/api/logs', (req: Request, res: Response) => {
+const logsRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/api/logs', logsRateLimit, (req: Request, res: Response) => {
   const validLevels = ['info', 'warn', 'error'];
   const level = validLevels.includes(req.body.level) ? req.body.level : 'info';
   const message = String(req.body.message ?? '').slice(0, 500);

@@ -525,8 +525,8 @@ Les zones les plus denses sont les controllers (`contactController.ts`, `organiz
 | ✅ P2 | Ajouter `helmet` (headers HTTP sécurisés) | 30 min | A05 | Corrigé — CSP, HSTS, X-Frame-Options activés |
 | 🟡 P2 | Tests controllers + services | 2–3h | — | Couverture globale à 32% |
 | ✅ P2 | Corriger labels formulaires (accessibilité) | 1h | — | Corrigé — `htmlFor`/`id` ajoutés sur tous les champs |
-| 🟢 P3 | Rate limiting sur `/api/logs` | 30 min | A04 | Prévention flood de logs |
-| 🟢 P3 | Externaliser config dans variables d'env | 1h | A02 | `ALLOWED_ORIGIN`, `DATABASE_URL` |
+| ✅ P3 | Rate limiting sur `/api/logs` | 30 min | A04 | Corrigé — 60 req/min via `express-rate-limit` |
+| ✅ P3 | Externaliser config dans variables d'env | 1h | A02 | Corrigé — `.env.example` documente toutes les variables (`ALLOWED_ORIGIN`, `LOG_LEVEL`, `LOGSTASH_*`) |
 
 ### Ce qui est déjà en place
 
