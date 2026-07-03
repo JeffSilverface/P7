@@ -1,5 +1,7 @@
 import express, { Application, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import organizationRoutes from './routes/organizationRoutes';
 import contactRoutes from './routes/contactRoutes';
@@ -10,8 +12,15 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 8080;
 
+app.disable('x-powered-by');
+
 // Middleware
-app.use(cors());
+app.use(helmet());
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:4200',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type'],
+}));
 app.use(express.json());
 
 // HTTP request logging
@@ -33,7 +42,14 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Orion CRM API is running' });
 });
 
-app.post('/api/logs', (req: Request, res: Response) => {
+const logsRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/api/logs', logsRateLimit, (req: Request, res: Response) => {
   const validLevels = ['info', 'warn', 'error'];
   const level = validLevels.includes(req.body.level) ? req.body.level : 'info';
   const message = String(req.body.message ?? '').slice(0, 500);
