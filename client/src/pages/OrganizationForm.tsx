@@ -77,10 +77,11 @@ export default function OrganizationForm() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
               Name <span className="text-red-500">*</span>
             </label>
             <input
+              id="name"
               type="text"
               name="name"
               value={form.name}
@@ -91,8 +92,9 @@ export default function OrganizationForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+            <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
             <input
+              id="industry"
               type="text"
               name="industry"
               value={form.industry}
@@ -102,8 +104,9 @@ export default function OrganizationForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+            <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">Website</label>
             <input
+              id="website"
               type="url"
               name="website"
               value={form.website}
@@ -113,8 +116,9 @@ export default function OrganizationForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea
+              id="description"
               name="description"
               value={form.description}
               onChange={handleChange}
