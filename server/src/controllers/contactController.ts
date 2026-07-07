@@ -12,7 +12,7 @@ export const contactController = {
     }
   },
 
-  async getById(req: Request, res: Response): Promise<void> {
+  async getById(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const contact = await contactService.getContactById(id);
@@ -36,7 +36,7 @@ export const contactController = {
     }
   },
 
-  async update(req: Request, res: Response): Promise<void> {
+  async update(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const validatedData = UpdateContactSchema.parse(req.body);
@@ -51,7 +51,7 @@ export const contactController = {
     }
   },
 
-  async delete(req: Request, res: Response): Promise<void> {
+  async delete(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       await contactService.deleteContact(id);

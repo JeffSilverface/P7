@@ -86,10 +86,11 @@ export default function ContactForm() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
                 First Name <span className="text-red-500">*</span>
               </label>
               <input
+                id="firstName"
                 type="text"
                 name="firstName"
                 value={form.firstName}
@@ -99,10 +100,11 @@ export default function ContactForm() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
                 Last Name <span className="text-red-500">*</span>
               </label>
               <input
+                id="lastName"
                 type="text"
                 name="lastName"
                 value={form.lastName}
@@ -114,10 +116,11 @@ export default function ContactForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email <span className="text-red-500">*</span>
             </label>
             <input
+              id="email"
               type="email"
               name="email"
               value={form.email}
@@ -128,8 +131,9 @@ export default function ContactForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
+              id="phone"
               type="tel"
               name="phone"
               value={form.phone}
@@ -139,8 +143,9 @@ export default function ContactForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+            <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">Position</label>
             <input
+              id="position"
               type="text"
               name="position"
               value={form.position}
@@ -150,8 +155,9 @@ export default function ContactForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+            <label htmlFor="organizationId" className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
             <select
+              id="organizationId"
               name="organizationId"
               value={form.organizationId}
               onChange={handleChange}

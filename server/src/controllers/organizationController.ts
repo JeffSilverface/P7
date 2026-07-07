@@ -12,7 +12,7 @@ export const organizationController = {
     }
   },
 
-  async getById(req: Request, res: Response): Promise<void> {
+  async getById(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const organization = await organizationService.getOrganizationById(id);
@@ -36,7 +36,7 @@ export const organizationController = {
     }
   },
 
-  async update(req: Request, res: Response): Promise<void> {
+  async update(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const validatedData = UpdateOrganizationSchema.parse(req.body);
@@ -51,7 +51,7 @@ export const organizationController = {
     }
   },
 
-  async delete(req: Request, res: Response): Promise<void> {
+  async delete(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       await organizationService.deleteOrganization(id);
