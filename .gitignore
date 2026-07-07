@@ -36,3 +36,7 @@ Thumbs.db
 # Coverage
 coverage/
 **/coverage/
+
+# Backups (fichiers runtime — non versionnés)
+backups/daily/
+backups/weekly/
