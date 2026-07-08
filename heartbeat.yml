@@ -1,0 +1,43 @@
+heartbeat.monitors:
+  - type: http
+    id: backend
+    name: "API Backend"
+    urls: ["http://p7-server:8080/api/health"]
+    schedule: "@every 30s"
+    check.response.status: [200]
+
+  - type: http
+    id: frontend
+    name: "Frontend"
+    urls: ["http://p7-client:80"]
+    schedule: "@every 30s"
+    check.response.status: [200]
+
+  - type: http
+    id: elasticsearch
+    name: "Elasticsearch"
+    urls: ["http://elasticsearch:9200/_cluster/health"]
+    schedule: "@every 30s"
+    check.response.status: [200]
+
+  - type: http
+    id: api-contacts
+    name: "API Contacts"
+    urls: ["http://p7-server:8080/api/contacts"]
+    schedule: "@every 30s"
+    check.response.status: [200]
+
+  - type: http
+    id: api-organizations
+    name: "API Organizations"
+    urls: ["http://p7-server:8080/api/organizations"]
+    schedule: "@every 30s"
+    check.response.status: [200]
+
+setup.kibana:
+  host: "kibana:5601"
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+
+logging.level: warning
