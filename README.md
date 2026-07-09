@@ -7,7 +7,7 @@ A simplified Customer Relationship Management (CRM) application built with the M
 This project follows a monorepo structure with separate frontend and backend applications:
 
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
-- **Backend**: Node.js 22 + Express 5 + TypeScript + Prisma
+- **Backend**: Node.js 24 + Express 5 + TypeScript + Prisma
 
 ## Prerequisites
 
@@ -301,6 +301,7 @@ docker compose -f docker-compose-elk.yml up -d
 | Elasticsearch | 9200 | Stockage et indexation des logs |
 | Logstash | 5001 (host) / 5000 (interne) | Réception TCP → indexation ES |
 | Kibana | 5601 | Visualisation et dashboards |
+| Heartbeat | — | Supervision de disponibilité (uptime) des services |
 
 ### Logs collectés
 
@@ -321,12 +322,14 @@ Tous les logs frontend sont taggés `source: frontend` pour faciliter le filtrag
 
 **Data View :** `p7-logs-*` — timestamp : `@timestamp`
 
-| Visualisation | Type | Filtre |
+| Visualisation | Type | Source |
 |---|---|---|
-| Log volume par niveau | Bar vertical stacked | Break down: `level.keyword` |
-| Total 404 backend | Metric | `level.keyword : warn` |
-| Durée moyenne par route | Bar horizontal | Average `duration_ms` / `url.keyword` |
-| Erreurs API frontend | Bar vertical | `source.keyword : frontend AND level.keyword : error` |
+| Services présents (Backend, Elasticsearch, Frontend) | Metric — Last value `monitor.status` | `heartbeat-*` |
+| Routes API disponibles (Contacts, Organizations) | Table — Last value `monitor.status` | `heartbeat-*` |
+| Log volume par niveau | Bar vertical stacked | `p7-logs-*` — Break down: `level.keyword` |
+| Total 404 backend | Metric | `p7-logs-*` — filtre `level.keyword : warn` |
+| Durée moyenne par route | Bar horizontal | `p7-logs-*` — Average `duration_ms` / `url.keyword` |
+| Erreurs API frontend | Bar vertical | `p7-logs-*` — filtre `source.keyword : frontend AND level.keyword : error` |
 
 ### Configuration
 
@@ -339,6 +342,32 @@ Les transports de log sont conditionnels :
 | `LOG_LEVEL=info` | Niveau minimum de log |
 
 Sans `LOGSTASH_HOST`, les logs restent uniquement dans la console (développement local sans Docker).
+
+---
+
+## Sauvegarde & restauration
+
+Deux scripts sont disponibles dans `scripts/` pour la gestion des sauvegardes SQLite.
+
+### Sauvegarde
+
+```bash
+# Sauvegarde quotidienne (rétention 7 jours)
+./scripts/backup.sh daily
+
+# Sauvegarde hebdomadaire (rétention 4 semaines)
+./scripts/backup.sh weekly
+```
+
+Les fichiers sont compressés (`.db.gz`) et horodatés dans `backups/daily/` ou `backups/weekly/`. La rétention est automatique (les plus anciens sont supprimés au-delà du seuil).
+
+### Restauration
+
+```bash
+./scripts/restore.sh backups/daily/dev-20260708-120000.db.gz
+```
+
+Le script arrête le container serveur, restaure le fichier, redémarre et exécute `prisma migrate deploy` pour aligner le schéma.
 
 ---
 
@@ -402,7 +431,7 @@ SonarCloud analyse les sources `client/src` et `server/src` après chaque passag
 | Indicateur | Valeur | Rating |
 |---|---|---|
 | Bugs | 0 | 🟢 A |
-| Vulnérabilités actives | 2 | 🔴 C |
+| Vulnérabilités actives | 0 (2 corrigées) | 🟢 A |
 | Security Hotspots | 0 | 🟢 A |
 | Code Smells | 26 | 🟢 A |
 | Duplications | 0% | 🟢 A |
@@ -442,11 +471,13 @@ Violation des règles d'accessibilité WCAG 2.1. Les champs de formulaire ne son
 
 Complexité cognitive inutile. À extraire dans une variable nommée.
 
-#### Zones à forte complexité
+#### Couverture par couche
 
-Les controllers (`contactController.ts`, `organizationController.ts`) concentrent la logique métier avec une couverture de tests de 3–8%. Ce sont les zones les plus risquées en cas de régression.
-
-**Corrélation ELK :** Aucun pic d'erreurs 500 sur ces routes en conditions normales → la complexité n'a pas encore causé de bug en production, mais l'absence de tests reste un risque.
+| Couche | Couverture |
+|---|---|
+| Controllers (contact, organization) | ~97% |
+| Services (contact, organization) | ~100% |
+| Repositories | exclus (wrappeurs Prisma) |
 
 ### Audit des dépendances (npm audit)
 
@@ -464,15 +495,15 @@ L'application est démarrée via Docker Compose puis soumise à un full scan ZAP
 
 ### Plan d'actions priorisées
 
-| Priorité | Action | Effort estimé | Référence |
+| Priorité | Action | Statut | Référence |
 |---|---|---|---|
-| 🔴 P1 | Restreindre CORS avec `ALLOWED_ORIGIN` | 5 min | OWASP A05 |
-| 🔴 P1 | Désactiver `X-Powered-By` | 1 min | OWASP A05 |
-| 🟡 P2 | Ajouter `helmet` (headers HTTP sécurisés) | 30 min | OWASP A05 |
-| 🟡 P2 | Tests controllers + services (couverture globale) | 2–3h | SonarCloud |
-| 🟡 P2 | Corriger labels formulaires (accessibilité WCAG) | 1h | SonarCloud |
-| 🟢 P3 | Rate limiting sur `/api/logs` (anti-flood) | 30 min | OWASP A04 |
-| 🟢 P3 | Externaliser toutes les config dans variables d'env | 1h | OWASP A02 |
+| 🔴 P1 | Restreindre CORS avec `ALLOWED_ORIGIN` | ✅ Fait | OWASP A05 |
+| 🔴 P1 | Désactiver `X-Powered-By` | ✅ Fait | OWASP A05 |
+| 🟡 P2 | Ajouter `helmet` (headers HTTP sécurisés) | ✅ Fait | OWASP A05 |
+| 🟡 P2 | Tests controllers + services (couverture globale) | ✅ Fait (~97%) | SonarCloud |
+| 🟡 P2 | Corriger labels formulaires (accessibilité WCAG) | ✅ Fait | SonarCloud |
+| 🟢 P3 | Rate limiting sur `/api/logs` (anti-flood) | ✅ Fait (60 req/min) | OWASP A04 |
+| 🟢 P3 | Externaliser toutes les config dans variables d'env | ✅ Fait | OWASP A02 |
 
 ### Bonnes pratiques CI
 
